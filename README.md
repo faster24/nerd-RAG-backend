@@ -8,7 +8,8 @@ Welcome to the RAG Dashboard API! This is a FastAPI-based web service that handl
 - **User Login**: Lets users log in with their email and password
 - **Token Management**: Handles login tokens (like access cards)
 - **Password Reset**: Helps users reset forgotten passwords
-- **Secure API**: Protects your data with authentication
+- **Role-Based Access Control (RBAC)**: Admin, Teacher, Student roles with hierarchical permissions
+- **Secure API**: Protects your data with Firebase authentication
 
 ## 🛠️ Quick Setup (3 Easy Steps)
 
@@ -129,9 +130,23 @@ JWT_SECRET_KEY=your-secret-key-here
 
 ## 🧪 Testing Your API
 
+### Running Tests
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Run all tests
+pytest
+
+# Run specific test files
+pytest tests/test_main.py          # Basic endpoint tests
+pytest tests/test_rbac.py          # RBAC logic tests
+pytest tests/test_api.py           # API integration tests
+```
+
 ### Using the Web Interface (Easiest)
 1. Open `http://localhost:8000/docs` in your browser
-2. You'll see all available API endpoints
+2. You'll see all available API endpoints with Swagger UI
 3. Click on any endpoint to test it
 4. Click "Try it out" and fill in the data
 
@@ -151,45 +166,6 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
   -d '{"email":"test@example.com","password":"password123"}'
 ```
 
-## 📁 Project Structure (What Each Folder Does)
-
-```
-nerd_dashboard/
-├── apps/                    # Different parts of your app
-│   ├── auth/               # User login/signup code
-│   │   ├── routes.py       # API endpoints for auth
-│   │   └── service.py      # Business logic for auth
-│   └── users/              # User data models
-│       ├── models.py       # User data structure
-│       └── schemas.py      # Data validation rules
-├── core/                   # Core app functionality
-│   ├── firebase.py         # Firebase connection code
-│   ├── firebase_client.py  # Firebase API calls
-│   ├── middleware.py       # Security and CORS
-│   └── settings.py         # App configuration
-├── venv/                   # Python virtual environment
-├── firebase_credential.json # 🔴 Your Firebase key (don't share!)
-├── .env                    # 🔴 Secret settings (don't share!)
-├── manage.py              # Main app file (start here!)
-├── requirements.txt       # List of needed packages
-├── Dockerfile            # Docker build instructions
-├── docker-compose.yml    # Docker setup
-└── README.md             # This file!
-```
-
-## 🚀 API Endpoints Overview
-
-| Method | Endpoint | What it does |
-|--------|----------|--------------|
-| GET | `/` | Check if API is running |
-| GET | `/health` | Health check for monitoring |
-| POST | `/api/v1/auth/register` | Create new user account |
-| POST | `/api/v1/auth/login` | Login with email/password |
-| POST | `/api/v1/auth/refresh` | Get new access token |
-| POST | `/api/v1/auth/logout` | Logout user |
-| POST | `/api/v1/auth/password-reset` | Send password reset email |
-| GET | `/api/v1/auth/me` | Get current user info (needs login) |
-
 ## 🔐 Authentication Flow
 
 1. **Register**: User creates account
@@ -203,6 +179,77 @@ curl -H "Authorization: Bearer YOUR_TOKEN_HERE" \
      http://localhost:8000/api/v1/auth/me
 ```
 
+## 📁 Project Structure (What Each Folder Does)
+
+```
+nerd_dashboard/
+├── apps/                    # Different parts of your app
+│   ├── auth/               # User login/signup code
+│   │   ├── routes.py       # API endpoints for auth
+│   │   └── service.py      # Business logic for auth
+│   └── users/              # User data models
+│       ├── models.py       # User data structure
+│       └── schemas.py      # Data validation rules (Pydantic v2)
+├── core/                   # Core app functionality
+│   ├── auth_dependencies.py # RBAC role checking dependencies
+│   ├── firebase.py         # Firebase connection code
+│   ├── middleware.py       # Security, CORS, and auth
+│   ├── roles.py            # Role enum definitions
+│   └── settings.py         # App configuration (Pydantic Settings v2)
+├── tests/                  # Unit and API tests
+│   ├── test_main.py        # Basic endpoint tests
+│   ├── test_rbac.py        # RBAC logic tests
+│   └── test_api.py         # API route integration tests
+├── venv/                   # Python virtual environment
+├── firebase_credential.json # 🔴 Your Firebase key (don't share!)
+├── .env                    # 🔴 Secret settings (don't share!)
+├── manage.py              # Main app file (start here!)
+├── requirements.txt       # Python dependencies
+├── Dockerfile            # Docker build instructions
+├── docker-compose.yml    # Docker setup
+└── README.md             # This file!
+```
+
+## 🚀 API Endpoints Overview
+
+| Method | Endpoint | What it does | Requires Role |
+|--------|----------|--------------|---------------|
+| GET | `/` | Check if API is running | None |
+| GET | `/health` | Health check for monitoring | None |
+| POST | `/api/v1/auth/register` | Create new user account | None |
+| POST | `/api/v1/auth/login` | Login with email/password | None |
+| POST | `/api/v1/auth/refresh` | Get new access token | None |
+| POST | `/api/v1/auth/logout` | Logout user | Auth |
+| POST | `/api/v1/auth/password-reset` | Send password reset email | None |
+| POST | `/api/v1/auth/password-reset/confirm` | Confirm password reset | None |
+| GET | `/api/v1/auth/me` | Get current user info with role | Auth |
+| GET | `/api/v1/auth/admin/dashboard` | Admin-only dashboard | Admin |
+| GET | `/api/v1/auth/teacher/dashboard` | Teacher dashboard | Teacher or Admin |
+| GET | `/api/v1/auth/student/dashboard` | Student dashboard | Any role |
+| PUT | `/api/v1/auth/users/{uid}/role` | Update user role (admin only) | Admin |
+
+## 🔐 Role-Based Access Control (RBAC)
+
+This project implements a hierarchical RBAC system with three roles:
+
+### Role Hierarchy (highest to lowest)
+1. **Admin** - Full access to all endpoints
+2. **Teacher** - Access to teacher and student endpoints
+3. **Student** - Access to student endpoints only
+
+### Role Management
+- Roles are stored as Firebase Custom Claims on the user
+- Admins can update user roles via: `PUT /api/v1/auth/users/{uid}/role`
+- Default role for new users: **Student**
+
+### Example: Update User Role
+```bash
+curl -X PUT http://localhost:8000/api/v1/auth/users/{user_uid}/role \
+  -H "Authorization: Bearer ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"role": "teacher"}'
+```
+
 ## 🐛 Common Problems & Solutions
 
 ### Problem: "Firebase not configured"
@@ -213,14 +260,40 @@ curl -H "Authorization: Bearer YOUR_TOKEN_HERE" \
 ```bash
 # Find what's using the port
 lsof -i :8000
-# Kill the process or use a different port
+# Kill the process
+pkill -f "uvicorn"
+# OR use Docker if Python server is running
+docker-compose down
+```
+
+### Problem: "Python 3.14 compatibility"
+**Solution**: Use Python 3.10 or 3.11 (recommended):
+```bash
+# Check Python version
+python --version
+
+# Create venv with Python 3.10
+python3.10 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ### Problem: "Module not found"
-**Solution**: Make sure you're in the virtual environment:
+**Solution**: Make sure you're in the virtual environment and using correct Python:
 ```bash
 source venv/bin/activate
+python --version  # Should be Python 3.10 or 3.11
 pip install -r requirements.txt
+```
+
+### Problem: "Docker health check failing"
+**Solution**: Make sure curl is installed in container and port is free:
+```bash
+# Stop local Python server
+pkill -f "uvicorn"
+# Rebuild and restart Docker
+docker-compose down
+docker-compose up -d --build
 ```
 
 ### Problem: "Permission denied"
@@ -229,12 +302,37 @@ pip install -r requirements.txt
 chmod 644 firebase_credential.json
 ```
 
+## 🧪 Running Tests
+
+The project includes comprehensive unit tests and API tests:
+
+```bash
+# Run all tests
+pytest -v
+
+# Run with coverage
+pytest --cov=.
+
+# Unit tests (RBAC logic, basic endpoints)
+pytest tests/test_main.py tests/test_rbac.py -v
+
+# API integration tests
+pytest tests/test_api.py -v
+```
+
+**Test Results:**
+- ✅ test_main.py: 2 tests passed
+- ✅ test_rbac.py: 8 tests passed
+- ⚠️ test_api.py: 4 passed, 5 failed (require Firebase credentials)
+
 ## 📚 Learning Resources
 
 - **FastAPI Docs**: https://fastapi.tiangolo.com/
 - **Firebase Auth**: https://firebase.google.com/docs/auth
 - **Python Virtual Environments**: https://docs.python.org/3/tutorial/venv.html
 - **Docker Basics**: https://docker.com/get-started
+- **Pydantic v2**: https://docs.pydantic.dev/latest/
+- **RBAC Best Practices**: https://fastapi.tiangolo.com/tutorial/security/
 
 ## 🤝 Contributing
 

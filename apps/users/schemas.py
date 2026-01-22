@@ -44,6 +44,7 @@ class UserResponse(BaseModel):
     photo_url: Optional[str] = None
     provider_id: str
     created_at: str
+    role: Optional[str] = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -55,6 +56,44 @@ class UserResponse(BaseModel):
                 "photo_url": None,
                 "provider_id": "password",
                 "created_at": "2024-01-01T00:00:00Z",
+                "role": "student",
+            }
+        }
+    )
+
+
+class LoginResponse(BaseModel):
+    user: UserResponse
+    tokens: dict
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "refresh_token": "refresh_token_here",
+            }
+        }
+    )
+
+
+class RefreshTokenResponse(BaseModel):
+    id_token: str
+    access_token: str
+    refresh_token: str
+    expires_in: int
+    token_type: str = "Bearer"
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMzQ1Njc4OTAifQ...",
+                "access_token": "ya29.a0AfH6SMB...",
+                "refresh_token": "AMf4BbI2qjL...Z5y7w",
+                "expires_in": 3600,
+                "token_type": "Bearer",
             }
         }
     )
@@ -67,69 +106,15 @@ class AuthTokens(BaseModel):
     expires_in: int
     token_type: str = "Bearer"
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMzQ1Njc4OTAifQ...",
                 "refresh_token": "AMf4BbI2qjL...Z5y7w",
                 "expires_in": 3600,
-                "token_type": "Bearer",
             }
         }
-
-
-class LoginResponse(BaseModel):
-    user: UserResponse
-    tokens: AuthTokens
-
-    class Config:
-        schema_extra = {
-            "example": {
-                "user": {
-                    "uid": "abc123xyz",
-                    "email": "user@example.com",
-                    "email_verified": True,
-                    "display_name": "John Doe",
-                    "photo_url": None,
-                    "provider_id": "password",
-                    "created_at": "2024-01-01T00:00:00Z",
-                },
-                "tokens": {
-                    "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMzQ1Njc4OTAifQ...",
-                    "refresh_token": "AMf4BbI2qjL...Z5y7w",
-                    "expires_in": 3600,
-                    "token_type": "Bearer",
-                },
-            }
-        }
-
-
-class RefreshTokenRequest(BaseModel):
-    refresh_token: str
-
-    class Config:
-        schema_extra = {
-            "example": {"refresh_token": "AMf4BbI2qjL...Z5y7w"}
-        }
-
-
-class RefreshTokenResponse(BaseModel):
-    id_token: str
-    access_token: str
-    refresh_token: str
-    expires_in: int
-    token_type: str = "Bearer"
-
-    class Config:
-        schema_extra = {
-            "example": {
-                "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMzQ1Njc4OTAifQ...",
-                "access_token": "ya29.a0AfH6SMB...",
-                "refresh_token": "AMf4BbI2qjL...Z5y7w",
-                "expires_in": 3600,
-                "token_type": "Bearer",
-            }
-        }
+    )
 
 
 class PasswordResetRequest(BaseModel):
@@ -175,19 +160,3 @@ class SetRoleRequest(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={"example": {"role": "admin"}}
     )
-
-    class Config:
-        schema_extra = {"example": {"message": "Operation successful"}}
-
-
-class ErrorResponse(BaseModel):
-    error: str
-    details: Optional[str] = None
-
-    class Config:
-        schema_extra = {
-            "example": {
-                "error": "Invalid credentials",
-                "details": "The email or password is incorrect",
-            }
-        }
