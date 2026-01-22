@@ -135,5 +135,17 @@ class AuthService:
             logger.error(f"Get user error: {str(e)}")
             raise
 
+    async def set_user_role(self, uid: str, role: str):
+        if not self._check_firebase_available():
+            raise Exception("Firebase authentication is not configured.")
+
+        try:
+            firebase_auth.set_custom_user_claims(uid, {"role": role})
+            logger.info(f"Role set for user {uid}: {role}")
+            return True
+        except Exception as e:
+            logger.error(f"Set role error: {str(e)}")
+            raise
+
 
 auth_service = AuthService()

@@ -12,6 +12,7 @@ from apps.users.schemas import (
 )
 from apps.users.models import User
 from core.middleware import verify_firebase_token
+from core.auth_dependencies import get_user_role, require_admin, require_teacher, require_student
 import logging
 
 logger = logging.getLogger(__name__)
@@ -138,6 +139,34 @@ async def confirm_password_reset(reset_confirm: PasswordResetConfirm):
 
 
 @router.get("/me")
-async def get_current_user(request: Request, user_data: dict = Depends(verify_firebase_token)):
-    user = await auth_service.get_user_by_uid(user_data["uid"])
-    return User.from_firebase_user(user)
+async def get_current_user(decoded_token: dict = Depends(verify_firebase_token)):
+    user = await auth_service.get_user_by_uid(decoded_token["uid"])
+    role = get_user_role(decoded_token)
+    return User.from_firebase_user(user, role=role)
+
+
+@router.get("/admin/dashboard", dependencies=[Depends(require_admin)])
+async def admin_dashboard():
+    return {"message": "Welcome to admin dashboard"}
+
+
+@router.get("/teacher/dashboard", dependencies=[Depends(require_teacher)])
+async def teacher_dashboard():
+    return {"message": "Welcome to teacher dashboard"}
+
+
+@router.get("/student/dashboard", dependencies=[Depends(require_student)])
+async def student_dashboard():
+    return {"message": "Welcome to student dashboard"}
+
+
+@router.post("/admin/set-role", dependencies=[Depends(require_admin)])
+async def set_user_role_endpoint(data: dict):
+    try:
+        await auth_service.set_user_role(data["uid"], data["role"])
+        return {"message": f"Role updated to {data['role']}"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to set role: {str(e)}",
+        )

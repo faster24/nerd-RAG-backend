@@ -22,6 +22,7 @@ MANIFEST
 
 .env
 .venv
+.opencode/
 env/
 venv/
 ENV/
