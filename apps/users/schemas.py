@@ -164,6 +164,18 @@ class PasswordResetConfirm(BaseModel):
 class MessageResponse(BaseModel):
     message: str
 
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"message": "Operation successful"}}
+    )
+
+
+class SetRoleRequest(BaseModel):
+    role: str
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"role": "admin"}}
+    )
+
     class Config:
         schema_extra = {"example": {"message": "Operation successful"}}
 
