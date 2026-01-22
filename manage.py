@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from contextlib import asynccontextmanager
 from core.settings import settings
 from core.firebase import initialize_firebase
 from core.middleware import setup_middleware
@@ -14,27 +15,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting application...")
+    initialize_firebase()
+    logger.info("Application started")
+    yield
+    logger.info("Shutting down application...")
+
+
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description="RAG Dashboard API with Firebase Authentication",
+    lifespan=lifespan,
 )
 
 setup_middleware(app)
 
 app.include_router(auth_router)
-
-
-@app.on_event("startup")
-async def startup_event():
-    logger.info("Starting application...")
-    initialize_firebase()
-    logger.info("Application started")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down application...")
 
 
 @app.get("/")

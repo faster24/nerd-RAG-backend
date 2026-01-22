@@ -1,4 +1,5 @@
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from typing import List
 import os
 
@@ -39,10 +40,11 @@ class Settings(BaseSettings):
         """Parse comma-separated origins string into list"""
         return [origin.strip() for origin in self.allowed_origins_str.split(",") if origin.strip()]
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-        extra = "ignore"
+    model_config = ConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
 
 settings = Settings()

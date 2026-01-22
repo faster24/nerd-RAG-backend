@@ -7,10 +7,11 @@ class UserCreate(BaseModel):
     password: str
     display_name: Optional[str] = None
 
-    @validator("password")
-    def validate_password_strength(cls, v):
-        if len(v) < 6:
-            raise ValueError("Password must be at least 6 characters long")
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
         return v
 
     class Config:
@@ -139,10 +140,11 @@ class PasswordResetConfirm(BaseModel):
     oob_code: str
     new_password: str
 
-    @validator("new_password")
+    @field_validator("new_password")
+    @classmethod
     def validate_new_password(cls, v):
-        if len(v) < 6:
-            raise ValueError("Password must be at least 6 characters long")
+        if len(v) < 8:
+            raise ValueError("New password must be at least 8 characters long")
         return v
 
     class Config:
