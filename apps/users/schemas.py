@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
 from typing import Optional
 
 
@@ -14,24 +14,26 @@ class UserCreate(BaseModel):
             raise ValueError("Password must be at least 8 characters long")
         return v
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "email": "user@example.com",
                 "password": "securepassword123",
                 "display_name": "John Doe",
             }
         }
+    )
 
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {"email": "user@example.com", "password": "securepassword123"}
         }
+    )
 
 
 class UserResponse(BaseModel):
@@ -43,8 +45,8 @@ class UserResponse(BaseModel):
     provider_id: str
     created_at: str
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "uid": "abc123xyz",
                 "email": "user@example.com",
@@ -55,6 +57,7 @@ class UserResponse(BaseModel):
                 "created_at": "2024-01-01T00:00:00Z",
             }
         }
+    )
 
 
 class AuthTokens(BaseModel):
@@ -132,8 +135,9 @@ class RefreshTokenResponse(BaseModel):
 class PasswordResetRequest(BaseModel):
     email: EmailStr
 
-    class Config:
-        schema_extra = {"example": {"email": "user@example.com"}}
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"email": "user@example.com"}}
+    )
 
 
 class PasswordResetConfirm(BaseModel):
@@ -147,13 +151,14 @@ class PasswordResetConfirm(BaseModel):
             raise ValueError("New password must be at least 8 characters long")
         return v
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "oob_code": "ABC123XYZ",
                 "new_password": "newpassword123",
             }
         }
+    )
 
 
 class MessageResponse(BaseModel):
