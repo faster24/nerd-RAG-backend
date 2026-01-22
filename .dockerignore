@@ -1,0 +1,51 @@
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.eggs
+.pytest_cache
+.coverage
+htmlcov
+.mypy_cache
+.dmypy.json
+dmypy.json
+.tox
+.nox
+
+# IDE
+.DS_Store
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Git
+.git
+.gitignore
+
+# Virtual environments
+venv
+myenv
+.env
+
+# Firebase (keep firebase_credential.json)
+firebase-service-account.json
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Development files
+.env.local
+.env.*.local
