@@ -184,7 +184,7 @@ async def get_current_user(decoded_token: dict = Depends(verify_firebase_token))
     summary="Admin dashboard",
     description="Access admin-only dashboard. Requires admin role.",
 )
-async def admin_dashboard():
+async def admin_dashboard(decoded_token: dict = Depends(require_admin)):
     return {"message": "Welcome to admin dashboard"}
 
 
@@ -193,7 +193,7 @@ async def admin_dashboard():
     summary="Teacher dashboard",
     description="Access teacher dashboard. Requires teacher or admin role.",
 )
-async def teacher_dashboard():
+async def teacher_dashboard(decoded_token: dict = Depends(require_teacher)):
     return {"message": "Welcome to teacher dashboard"}
 
 
@@ -202,7 +202,7 @@ async def teacher_dashboard():
     summary="Student dashboard",
     description="Access student dashboard. Requires any authenticated role.",
 )
-async def student_dashboard():
+async def student_dashboard(decoded_token: dict = Depends(verify_firebase_token)):
     return {"message": "Welcome to student dashboard"}
 
 

@@ -4,7 +4,9 @@ from contextlib import asynccontextmanager
 from core.settings import settings
 from core.firebase import initialize_firebase
 from core.middleware import setup_middleware
+from core.redis import check_redis_connection
 from apps.auth.routes import router as auth_router
+from apps.documents.routes import router as documents_router
 import logging
 
 logging.basicConfig(
@@ -19,6 +21,13 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting application...")
     initialize_firebase()
+    
+    # Check Redis connection
+    if not check_redis_connection():
+        logger.warning("Redis connection failed - document upload features may not work")
+    else:
+        logger.info("Redis connection established")
+    
     logger.info("Application started")
     yield
     logger.info("Shutting down application...")
@@ -34,6 +43,7 @@ app = FastAPI(
 setup_middleware(app)
 
 app.include_router(auth_router)
+app.include_router(documents_router)
 
 
 @app.get("/")

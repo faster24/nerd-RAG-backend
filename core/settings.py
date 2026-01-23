@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
+
 from typing import List
 import os
 
@@ -35,16 +36,35 @@ class Settings(BaseSettings):
 
     database_url: str = ""
 
-    @property
-    def allowed_origins(self) -> List[str]:
-        """Parse comma-separated origins string into list"""
-        return [origin.strip() for origin in self.allowed_origins_str.split(",") if origin.strip()]
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 0
+    redis_password: str = ""
+
+    embedding_model: str = "all-MiniLM-L6-v2"
+    chunk_size: int = 500
+    chunk_overlap: int = 50
+
+    max_file_size_mb: int = 50
+    allowed_file_types_str: str = "pdf,txt,md"
 
     model_config = ConfigDict(
         env_file=".env",
         case_sensitive=False,
         extra="ignore",
     )
+
+    @property
+    def allowed_origins(self) -> List[str]:
+        return [origin.strip() for origin in self.allowed_origins_str.split(",") if origin.strip()]
+
+    @property
+    def allowed_file_types(self) -> List[str]:
+        return [ftype.strip() for ftype in self.allowed_file_types_str.split(",") if ftype.strip()]
+
+    @property
+    def max_file_size_bytes(self) -> int:
+        return self.max_file_size_mb * 1024 * 1024
 
 
 settings = Settings()
