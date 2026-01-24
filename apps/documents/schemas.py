@@ -78,4 +78,5 @@ class BatchUploadResponse(BaseModel):
 
 class HealthCheckResponse(BaseModel):
     redis_connected: bool
+    mongodb_connected: bool
     embedding_model_loaded: bool

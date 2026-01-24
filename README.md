@@ -116,6 +116,16 @@ FIREBASE_API_KEY=your-api-key
 
 # Security
 JWT_SECRET_KEY=your-secret-key-here
+
+# Redis (Caching)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# MongoDB Atlas (Vector Storage)
+MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/
+MONGODB_DB_NAME=rag_dashboard
+MONGODB_COLLECTION_NAME=documents
+MONGODB_VECTOR_INDEX_NAME=vector_index
 ```
 
 ## 🧪 Testing Your API
@@ -149,6 +159,8 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 - **Python Virtual Environments**: https://docs.python.org/3/tutorial/venv.html
 - **Docker Basics**: https://docker.com/get-started
 - **Pydantic v2**: https://docs.pydantic.dev/latest/
+- **LangChain**: https://python.langchain.com/
+- **MongoDB Atlas Vector Search**: https://www.mongodb.com/products/platform/atlas-vector-search
 
 ## 🤝 Contributing
 

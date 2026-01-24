@@ -5,24 +5,27 @@ from datetime import datetime
 from typing import List, Optional, Tuple
 from PyPDF2 import PdfReader
 import frontmatter
-from sentence_transformers import SentenceTransformer
+import logging
 from core.settings import settings
 from core.redis import get_redis_client
+from pymongo import MongoClient
+from langchain_mongodb import MongoDBAtlasVectorSearch
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_core.documents import Document
 from apps.documents.schemas import DocumentMetadata, DocumentStatus, DocumentType, DocumentChunk
-import logging
+_embeddings = None
 
 logger = logging.getLogger(__name__)
 
-_embedding_model = None
-
-
-def get_embedding_model() -> SentenceTransformer:
-    global _embedding_model
-    if _embedding_model is None:
+def get_embeddings() -> HuggingFaceEmbeddings:
+    global _embeddings
+    if _embeddings is None:
         logger.info(f"Loading embedding model: {settings.embedding_model}")
-        _embedding_model = SentenceTransformer(settings.embedding_model)
+        _embeddings = HuggingFaceEmbeddings(model_name=settings.embedding_model)
         logger.info("Embedding model loaded successfully")
-    return _embedding_model
+    return _embeddings
+
+
 
 
 def extract_text_from_pdf(file_content: bytes) -> str:
@@ -93,9 +96,8 @@ def chunk_text(text: str, chunk_size: int = None, chunk_overlap: int = None) -> 
 def embed_texts(texts: List[str]) -> List[List[float]]:
     if not texts:
         return []
-    model = get_embedding_model()
-    embeddings = model.encode(texts, convert_to_numpy=True)
-    return embeddings.tolist()
+    embeddings = get_embeddings()
+    return embeddings.embed_documents(texts)
 
 
 def validate_file_size(file_size: int) -> bool:
@@ -122,6 +124,16 @@ def validate_file_type(filename: str) -> Tuple[bool, Optional[DocumentType]]:
 class DocumentService:
     def __init__(self):
         self.redis = get_redis_client()
+        self.mongo_client = MongoClient(settings.mongodb_uri)
+        self.db = self.mongo_client[settings.mongodb_db_name]
+        self.collection = self.db[settings.mongodb_collection_name]
+        self.embeddings = get_embeddings()
+        self.vector_store = MongoDBAtlasVectorSearch(
+            collection=self.collection,
+            embedding=self.embeddings,
+            index_name=settings.mongodb_vector_index_name,
+            relevance_score_fn="cosine",
+        )
     
     def generate_document_id(self) -> str:
         return f"doc_{uuid.uuid4().hex[:16]}"
@@ -164,8 +176,12 @@ class DocumentService:
             "error_message": None
         }
         
-        self.redis.hset(doc_key, mapping=doc_data)
-        self.redis.sadd(f"user:{user_id}:documents", doc_id)
+        # Store metadata in MongoDB instead of Redis
+        self.db.metadata.insert_one(doc_data)
+        
+        # Keep Redis for quick user document list if needed, but let's migrate to Mongo
+        # self.redis.hset(doc_key, mapping=doc_data)
+        # self.redis.sadd(f"user:{user_id}:documents", doc_id)
         
         return metadata
     
@@ -176,7 +192,6 @@ class DocumentService:
         chunks_count: int = None,
         error_message: str = None
     ):
-        doc_key = f"doc:{doc_id}"
         updates = {
             "status": status.value,
             "updated_at": datetime.utcnow().isoformat()
@@ -187,12 +202,14 @@ class DocumentService:
         
         if error_message:
             updates["error_message"] = error_message
-        
-        self.redis.hset(doc_key, mapping=updates)
+            
+        self.db.metadata.update_one(
+            {"id": doc_id},
+            {"$set": updates}
+        )
     
     async def get_document(self, doc_id: str) -> Optional[DocumentMetadata]:
-        doc_key = f"doc:{doc_id}"
-        data = self.redis.hgetall(doc_key)
+        data = self.db.metadata.find_one({"id": doc_id})
         
         if not data:
             return None
@@ -211,72 +228,64 @@ class DocumentService:
         )
     
     async def get_user_documents(self, user_id: str) -> List[DocumentMetadata]:
-        doc_ids = self.redis.smembers(f"user:{user_id}:documents")
+        cursor = self.db.metadata.find({"user_id": user_id}).sort("created_at", -1)
         documents = []
         
-        for doc_id in doc_ids:
-            doc = await self.get_document(doc_id)
-            if doc:
-                documents.append(doc)
+        for data in cursor:
+            documents.append(DocumentMetadata(
+                id=data["id"],
+                user_id=data["user_id"],
+                filename=data["filename"],
+                file_type=DocumentType(data["file_type"]),
+                file_size=int(data["file_size"]),
+                chunks_count=int(data["chunks_count"]),
+                status=DocumentStatus(data["status"]),
+                created_at=datetime.fromisoformat(data["created_at"]),
+                updated_at=datetime.fromisoformat(data["updated_at"]) if data.get("updated_at") else None,
+                error_message=data.get("error_message")
+            ))
         
-        return sorted(documents, key=lambda x: x.created_at, reverse=True)
+        return documents
     
     async def save_chunks(self, doc_id: str, chunks: List[str], embeddings: List[List[float]]):
-        chunk_key_prefix = f"doc:{doc_id}:chunk"
+        # We use LangChain's vector_store to save chunks
+        # LangChain's MongoDBAtlasVectorSearch handles embedding if we don't provide it, 
+        # but here we already have embeddings if we want to use them.
+        # Actually, MongoDBAtlasVectorSearch.add_texts will use the internal embedding function.
         
-        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-            chunk_data = {
-                "document_id": doc_id,
-                "chunk_index": i,
-                "content": chunk,
-                "embedding": pickle.dumps(embedding).hex()
-            }
-            
-            chunk_key = f"{chunk_key_prefix}:{i}"
-            self.redis.hset(chunk_key, mapping=chunk_data)
+        documents = [
+            Document(
+                page_content=chunk,
+                metadata={"document_id": doc_id, "chunk_index": i}
+            )
+            for i, chunk in enumerate(chunks)
+        ]
         
-        self.redis.set(f"doc:{doc_id}:chunk_count", len(chunks))
+        self.vector_store.add_documents(documents)
     
     async def get_document_chunks(self, doc_id: str) -> List[DocumentChunk]:
-        chunk_count = self.redis.get(f"doc:{doc_id}:chunk_count")
-        if not chunk_count:
-            return []
-        
-        chunk_count = int(chunk_count)
+        # Retrieve chunks from MongoDB collection
+        cursor = self.collection.find({"metadata.document_id": doc_id}).sort("metadata.chunk_index", 1)
         chunks = []
         
-        for i in range(chunk_count):
-            chunk_key = f"doc:{doc_id}:chunk:{i}"
-            data = self.redis.hgetall(chunk_key)
-            
-            if data:
-                embedding = None
-                if data.get("embedding"):
-                    embedding = pickle.loads(bytes.fromhex(data["embedding"]))
-                
-                chunks.append(DocumentChunk(
-                    document_id=doc_id,
-                    chunk_index=int(data["chunk_index"]),
-                    content=data["content"],
-                    embedding=embedding
-                ))
+        for data in cursor:
+            chunks.append(DocumentChunk(
+                document_id=doc_id,
+                chunk_index=data["metadata"]["chunk_index"],
+                content=data["text"],
+                embedding=data.get("embedding") # Note: Atlas Search might not return vector by default
+            ))
         
         return chunks
     
     async def delete_document(self, doc_id: str, user_id: str) -> bool:
-        doc_key = f"doc:{doc_id}"
-        
-        if not self.redis.exists(doc_key):
+        # Delete metadata
+        res = self.db.metadata.delete_one({"id": doc_id, "user_id": user_id})
+        if res.deleted_count == 0:
             return False
         
-        chunk_count = self.redis.get(f"doc:{doc_id}:chunk_count")
-        if chunk_count:
-            for i in range(int(chunk_count)):
-                self.redis.delete(f"doc:{doc_id}:chunk:{i}")
-        
-        self.redis.delete(doc_key)
-        self.redis.delete(f"doc:{doc_id}:chunk_count")
-        self.redis.srem(f"user:{user_id}:documents", doc_id)
+        # Delete chunks from vector collection
+        self.collection.delete_many({"metadata.document_id": doc_id})
         
         return True
 

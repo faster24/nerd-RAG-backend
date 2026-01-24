@@ -290,12 +290,20 @@ async def delete_document(
     "/health/check",
     response_model=HealthCheckResponse,
     summary="Health check",
-    description="Check if Redis and embedding model are available."
+    description="Check if Redis, MongoDB and embedding model are available."
 )
 async def health_check():
     from core.redis import check_redis_connection
+    from apps.documents.service import document_service
     
     redis_connected = check_redis_connection()
+    
+    mongodb_connected = False
+    try:
+        document_service.mongo_client.admin.command('ping')
+        mongodb_connected = True
+    except Exception:
+        mongodb_connected = False
     
     embedding_model_loaded = False
     try:
@@ -307,5 +315,6 @@ async def health_check():
     
     return HealthCheckResponse(
         redis_connected=redis_connected,
+        mongodb_connected=mongodb_connected,
         embedding_model_loaded=embedding_model_loaded
     )

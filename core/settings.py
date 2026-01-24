@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     redis_port: int = 6379
     redis_db: int = 0
     redis_password: str = ""
+    
+    mongodb_uri: str = ""
+    mongodb_db_name: str = "rag_dashboard"
+    mongodb_collection_name: str = "documents"
+    mongodb_vector_index_name: str = "vector_index"
 
     embedding_model: str = "all-MiniLM-L6-v2"
     chunk_size: int = 500
