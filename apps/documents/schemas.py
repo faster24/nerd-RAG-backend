@@ -80,3 +80,31 @@ class HealthCheckResponse(BaseModel):
     redis_connected: bool
     mongodb_connected: bool
     embedding_model_loaded: bool
+class QuestionOption(BaseModel):
+    id: str
+    text: str
+
+
+class QuestionContent(BaseModel):
+    question_stem: str
+    options: List[QuestionOption]
+    correct_option_id: str
+    explanation: str
+    flashcard_front: Optional[str] = None
+    flashcard_back: Optional[str] = None
+
+
+class Question(BaseModel):
+    subject: str
+    exam_source: str
+    difficulty: str
+    tags: List[str]
+    topic_path: List[str]
+    search_text: str
+    content: QuestionContent
+    embedding: Optional[List[float]] = None
+
+
+class QuestionUploadResponse(BaseModel):
+    message: str
+    inserted_count: int

@@ -134,6 +134,7 @@ class DocumentService:
             index_name=settings.mongodb_vector_index_name,
             relevance_score_fn="cosine",
         )
+        self.questions_collection = self.db["questions"]
     
     def generate_document_id(self) -> str:
         return f"doc_{uuid.uuid4().hex[:16]}"
@@ -288,6 +289,23 @@ class DocumentService:
         self.collection.delete_many({"metadata.document_id": doc_id})
         
         return True
+
+    async def add_questions(self, questions: List[dict]) -> int:
+        """
+        Batch add questions to the questions collection.
+        Automatically generates embeddings for search_text.
+        """
+        if not questions:
+            return 0
+            
+        texts_to_embed = [q.get("search_text", "") for q in questions]
+        embeddings = self.embeddings.embed_documents(texts_to_embed)
+        
+        for q, emb in zip(questions, embeddings):
+            q["embedding"] = emb
+            
+        result = self.questions_collection.insert_many(questions)
+        return len(result.inserted_ids)
 
 
 document_service = DocumentService()

@@ -12,8 +12,9 @@ from apps.documents.schemas import (
     BatchUploadResponse,
     UploadError,
     HealthCheckResponse,
-    DocumentType,
     DocumentStatus,
+    Question,
+    QuestionUploadResponse,
 )
 from core.middleware import verify_firebase_token
 import logging
@@ -318,3 +319,50 @@ async def health_check():
         mongodb_connected=mongodb_connected,
         embedding_model_loaded=embedding_model_loaded
     )
+
+
+@router.post(
+    "/questions/upload",
+    response_model=QuestionUploadResponse,
+    summary="Upload questions from JSON",
+    description="Upload a JSON file containing a list of questions to be embedded and inserted into the questions collection."
+)
+async def upload_questions_json(
+    file: UploadFile = File(...),
+    user_data: dict = Depends(verify_firebase_token)
+):
+    if not file.filename.endswith(".json"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only JSON files are supported"
+        )
+    
+    try:
+        import json
+        content = await file.read()
+        data = json.loads(content)
+        
+        if not isinstance(data, list):
+            raise ValueError("JSON content must be a list of questions")
+            
+        # Validate questions using Pydantic
+        questions = [Question(**q).model_dump() for q in data]
+        
+        inserted_count = await document_service.add_questions(questions)
+        
+        return QuestionUploadResponse(
+            message="Questions uploaded and embedded successfully",
+            inserted_count=inserted_count
+        )
+        
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid JSON format"
+        )
+    except Exception as e:
+        logger.error(f"Error uploading questions: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process questions: {str(e)}"
+        )
