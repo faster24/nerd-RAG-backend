@@ -1,0 +1,81 @@
+[
+    {
+        "subject": "Chemistry",
+        "exam_source": "IGCSE 2023",
+        "difficulty": "Medium",
+        "tags": [
+            "Acids",
+            "Bases"
+        ],
+        "topic_path": [
+            "Chemistry",
+            "Acids and Bases"
+        ],
+        "search_text": "What is the pH of a neutral solution?",
+        "content": {
+            "question_stem": "What is the pH of a neutral solution at 25 degrees Celsius?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "0"
+                },
+                {
+                    "id": "B",
+                    "text": "7"
+                },
+                {
+                    "id": "C",
+                    "text": "14"
+                },
+                {
+                    "id": "D",
+                    "text": "1"
+                }
+            ],
+            "correct_option_id": "B",
+            "explanation": "A neutral solution has a pH of 7 at 25 degrees Celsius.",
+            "flashcard_front": "pH of neutral solution?",
+            "flashcard_back": "7"
+        }
+    },
+    {
+        "subject": "Physics",
+        "exam_source": "AP Physics",
+        "difficulty": "Hard",
+        "tags": [
+            "Mechanics",
+            "Energy"
+        ],
+        "topic_path": [
+            "Physics",
+            "Mechanics",
+            "Energy"
+        ],
+        "search_text": "Definition of kinetic energy.",
+        "content": {
+            "question_stem": "Which formula represents kinetic energy?",
+            "options": [
+                {
+                    "id": "A",
+                    "text": "mgh"
+                },
+                {
+                    "id": "B",
+                    "text": "1/2 mv^2"
+                },
+                {
+                    "id": "C",
+                    "text": "F*d"
+                },
+                {
+                    "id": "D",
+                    "text": "ma"
+                }
+            ],
+            "correct_option_id": "B",
+            "explanation": "Kinetic energy is the energy of motion, defined as 1/2 mass times velocity squared.",
+            "flashcard_front": "Kinetic Energy formula?",
+            "flashcard_back": "1/2 mv^2"
+        }
+    }
+]
