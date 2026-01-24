@@ -1,4 +1,4 @@
-from fastapi import Request, HTTPException, status
+from fastapi import Request, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from firebase_admin import auth as firebase_auth
@@ -12,7 +12,7 @@ security = HTTPBearer(auto_error=False)
 
 async def verify_firebase_token(
     request: Request,
-    credentials: HTTPAuthorizationCredentials = None,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> dict:
     try:
         if not credentials:
