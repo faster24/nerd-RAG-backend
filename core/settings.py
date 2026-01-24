@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     chunk_size: int = 500
     chunk_overlap: int = 50
 
+    google_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
+
     max_file_size_mb: int = 50
     allowed_file_types_str: str = "pdf,txt,md"
 

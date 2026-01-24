@@ -7,6 +7,7 @@ from core.middleware import setup_middleware
 from core.redis import check_redis_connection
 from apps.auth.routes import router as auth_router
 from apps.documents.routes import router as documents_router
+from apps.chat.routes import router as chat_router
 import logging
 
 logging.basicConfig(
@@ -44,6 +45,7 @@ setup_middleware(app)
 
 app.include_router(auth_router)
 app.include_router(documents_router)
+app.include_router(chat_router)
 
 
 @app.get("/")
