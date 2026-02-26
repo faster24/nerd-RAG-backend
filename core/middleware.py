@@ -21,12 +21,8 @@ async def verify_firebase_token(
                 detail="No authentication credentials provided",
             )
 
-        try:
-            import firebase_admin
-            if not firebase_admin._apps:
-                raise Exception("Not initialized")
-            firebase_auth.get_user("test")
-        except Exception:
+        import firebase_admin
+        if not firebase_admin._apps:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Firebase authentication is not configured",

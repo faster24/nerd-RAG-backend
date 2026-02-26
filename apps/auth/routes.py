@@ -1,5 +1,9 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, status, Request, Depends
+
 from apps.auth.service import auth_service
+from apps.users.models import User
 from apps.users.schemas import (
     UserCreate,
     UserLogin,
@@ -9,13 +13,11 @@ from apps.users.schemas import (
     PasswordResetRequest,
     PasswordResetConfirm,
     MessageResponse,
-    SetRoleRequest,
+    SetRoleRequest, UserResponse,
 )
-from apps.users.models import User
+from core.auth_dependencies import get_user_role, require_admin, require_teacher
 from core.middleware import verify_firebase_token
-from core.auth_dependencies import get_user_role, require_admin, require_teacher, require_student
 from core.roles import Role
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +34,19 @@ router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 async def register(user_data: UserCreate):
     try:
         result = await auth_service.register_user(user_data)
-        user = User.from_firebase_user(result["firebase_user"])
+        firebase_user = result["firebase_user"]
 
         return LoginResponse(
-            user=user,
+            user=UserResponse(
+                uid=firebase_user.uid,
+                email=firebase_user.email,
+                email_verified=firebase_user.email_verified,
+                display_name=firebase_user.display_name,
+                photo_url=firebase_user.photo_url,
+                provider_id=firebase_user.provider_id,
+                created_at=str(firebase_user.user_metadata.creation_timestamp),
+                role=None,
+            ),
             tokens={
                 "id_token": result["tokens"]["idToken"],
                 "refresh_token": result["tokens"]["refreshToken"],
@@ -47,7 +58,7 @@ async def register(user_data: UserCreate):
         logger.error(f"Registration failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Registration failed: {str(e)}",
+            detail=str(e),
         )
 
 
@@ -60,10 +71,19 @@ async def register(user_data: UserCreate):
 async def login(user_data: UserLogin):
     try:
         result = await auth_service.login_user(user_data)
-        user = User.from_firebase_user(result["firebase_user"])
+        firebase_user = result["firebase_user"]
 
         return LoginResponse(
-            user=user,
+            user=UserResponse(
+                uid=firebase_user.uid,
+                email=firebase_user.email,
+                email_verified=firebase_user.email_verified,
+                display_name=firebase_user.display_name,
+                photo_url=firebase_user.photo_url,
+                provider_id=firebase_user.provider_id,
+                created_at=str(firebase_user.user_metadata.creation_timestamp),
+                role=None,
+            ),
             tokens={
                 "id_token": result["tokens"]["idToken"],
                 "refresh_token": result["tokens"]["refreshToken"],
@@ -76,7 +96,7 @@ async def login(user_data: UserLogin):
         logger.error(f"Login failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Login failed: {str(e)}",
+            detail=str(e),
         )
 
 
@@ -100,7 +120,7 @@ async def refresh_token(refresh_request: RefreshTokenRequest):
         logger.error(f"Token refresh failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Token refresh failed: {str(e)}",
+            detail=str(e),
         )
 
 
