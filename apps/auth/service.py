@@ -1,9 +1,12 @@
-from firebase_admin import auth as firebase_auth
-from core.firebase_client import firebase_auth_client
-from core.firebase import get_firebase_auth, initialize_firebase
-from apps.users.schemas import UserCreate, UserLogin
-import firebase_admin
 import logging
+
+import firebase_admin
+import httpx
+from firebase_admin import auth as firebase_auth
+
+from apps.users.schemas import UserCreate, UserLogin
+from core.firebase import initialize_firebase
+from core.firebase_client import firebase_auth_client
 
 logger = logging.getLogger(__name__)
 
@@ -47,17 +50,34 @@ class AuthService:
 
     async def login_user(self, user_data: UserLogin):
         if not self._check_firebase_available():
-            raise Exception("Firebase authentication is not configured. Please set up Firebase credentials.")
+            raise Exception("Firebase authentication is not configured.")
 
         try:
             result = await firebase_auth_client.sign_in_with_email_password(
                 email=user_data.email, password=user_data.password
             )
-
             firebase_user = firebase_auth.get_user(result["localId"])
-
             logger.info(f"User logged in successfully: {user_data.email}")
             return {"firebase_user": firebase_user, "tokens": result}
+
+        except httpx.HTTPStatusError as e:
+            # Parse Firebase's error response for a clean message
+            try:
+                error_data = e.response.json()
+                firebase_message = error_data.get("error", {}).get("message", "")
+            except Exception:
+                firebase_message = ""
+
+            firebase_error_map = {
+                "EMAIL_NOT_FOUND": "No account found with this email address.",
+                "INVALID_PASSWORD": "Incorrect password. Please try again.",
+                "INVALID_LOGIN_CREDENTIALS": "Invalid email or password.",
+                "USER_DISABLED": "This account has been disabled.",
+                "TOO_MANY_ATTEMPTS_TRY_LATER": "Too many failed attempts. Please try again later.",
+            }
+            clean_message = firebase_error_map.get(firebase_message, "Invalid email or password.")
+            logger.warning(f"Login failed for {user_data.email}: {firebase_message}")
+            raise Exception(clean_message)
 
         except Exception as e:
             logger.error(f"Login error: {str(e)}")
