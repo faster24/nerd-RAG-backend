@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
 
-    allowed_origins_str: str = "http://localhost:3000,http://localhost:8000"
+    allowed_origins_str: str = "http://localhost:3000,http://localhost:8000,http://localhost:5173"
 
     database_url: str = ""
 
